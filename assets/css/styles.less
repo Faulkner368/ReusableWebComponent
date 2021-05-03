@@ -1,0 +1,26 @@
+// Main
+@import "components/reset.less";
+@import "theme.less";
+@import "mixins.less";
+
+// Components
+@import "components/my-component.less";
+
+body {
+    background-color: lightblue;
+}
+
+.container {
+    width: @mobilesmall;
+    margin: 50px auto;
+}
+
+.card {
+    border-radius: 3px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+    width: calc(~"@{mobilesmall} - 50px");
+    max-width: calc(~"@{mobilesmall} - 50px");
+    padding: 20px;
+    display: inherit;
+    margin: 5px;
+}
