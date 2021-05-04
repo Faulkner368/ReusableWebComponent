@@ -10,11 +10,14 @@
 <body>
     <div class="container">
 
-        <x-container class="card">
-            <x-counter></x-counter>
-            <hr>
-            <x-controls></x-controls>
-        </x-container>
+        <game-container class="card" id="game-card">
+            <game-output></game-output>
+            <hr id="divider" />
+            <game-play id="game-play-element"></game-play>
+        </game-container>
+        <div class="card">
+            <button id="reset" onclick="resetGame(this)">Reset</button>
+        </div>
 
     </div>
 

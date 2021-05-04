@@ -1,21 +1,23 @@
+function resetGame(element) {
+    element.dispatchEvent(new CustomEvent('reset-game', { bubbles: true, composed: true, detail: {} }));
+}
+
 // (PARENT) our app container, app-wide state is managed here
-class XContainer extends HTMLElement {
+class GameContainer extends HTMLElement {
     constructor() {
         super();
 
-        // any external prop can be defined here
-        this.props = {};
-
-        // our application level state is defined here, with initial values
         this.state = {
-            amount: 2, // the step amount to increment/decrement
-            total: 0,  // the running total
+            target: Number(Math.floor(Math.random() * 100)), // random number between 1 and 100
+            remainingGuesses: 10,
+            lastGuess: 0,
+            result: "",
+            hint: ""
         };
 
-        // give this component a shadowDOM
-        this.attachShadow({ mode: 'open' });
+        console.log(this.state.target);
 
-        // add shadowDOM and slot in the lightDOM
+        this.attachShadow({ mode: 'open' });
         this.shadowRoot.innerHTML = `
         <style>
             :host {
@@ -29,85 +31,142 @@ class XContainer extends HTMLElement {
             }
         </style>
 
-        <h1>Web Comp. Counter</h1>
+        <h1>Higher or Lower</h1>
         <slot></slot>
         `;
 
-        // add our event listeners for listening to state change requests
-        this.addEventListener('x-increment', this.onIncrement);
-        this.addEventListener('x-decrement', this.onDecrement);
-        this.addEventListener('x-update-amount', this.onUpdateAmount);
+        this.addEventListener('on-guess', this.onGuess);
+        document.addEventListener('reset-game', (value) => {
+            console.log(value);
+            this.resetGame();
+        });
+        this.onGuess = this.onGuess.bind(this);
+    }
 
-        // ensure our callbacks are bound to the component context
-        this.onIncrement = this.onIncrement.bind(this);
-        this.onDecrement = this.onDecrement.bind(this);
-        this.onUpdateAmount = this.onUpdateAmount.bind(this);
+    resetGame() {
+        this.state = {
+            target: Number(Math.floor(Math.random() * 100)), // random number between 1 and 100
+            remainingGuesses: 10,
+            lastGuess: 0,
+            result: "",
+            hint: ""
+        };
+
+        /**
+         * Only re-add these tags if state is win or lose,
+         * as they will have been removed, else no need to re-add
+         */
+        if (true) {
+            let gameCard = document.querySelector("#game-card");
+
+            if (gameCard) {
+                gameCard.innerHTML += '<hr id="divider" />';
+            }
+
+            let gamePlay = new GamePlay();
+            gamePlay.id = "game-play-element";
+            this.appendChild(gamePlay);
+        }
+
+        this.updateChildren();
     }
 
     connectedCallback() {
-        // update the shadowDOM with the intitial props/state
         this.updateChildren();
     }
 
-    onDecrement(event) {
-        // decrement our total by the current amount
-        this.state.total = this.state.total - this.state.amount;
-
-        // update the shadowDOM with the current props/state
-        this.updateChildren();
+    calculateHint() {
+        if (this.state.remainingGuesses > 0) {
+            return this.state.lastGuess < this.state.target ? "higher" : "lower";
+        } else {
+            return "";
+        }
     }
 
-    onIncrement(event) {
-        // increment our total by the current amount
-        this.state.total = this.state.total + this.state.amount;
+    endPlay() {
+        // Remove GamePlay element so user can't make anymore guesses
+        let element = document.querySelector("#game-play-element");
+        element.parentNode.removeChild(element);
 
-        // update the shadowDOM with the current props/state
-        this.updateChildren();
+        let divider = document.querySelector("#divider");
+
+        if (divider) {
+            divider.parentNode.removeChild(divider);
+        }
+
+        this.state.hint = "";
     }
 
-    onUpdateAmount(event) {
-        // update our state to the desired amount
-        this.state.amount = event.detail.amount;
+    onGuess(event) {
+        if (this.state.remainingGuesses === 0) {
+            // No more guesses, decalares a loss and ends
+            this.endPlay();
+            return;
+        } else if (Number(event.detail.lastGuess) === this.state.target) {
+            // Checks guess is a match, if so ends play
+            this.state.result = "You Win!";
+            this.endPlay();
+        } else if (this.state.remainingGuesses === 1) {
+            // Last guess so ends play
+            // Decrements one guess
+            this.state.remainingGuesses -= 1;
+            this.state.result = "You Lose!";
+            this.endPlay();
+        } else {
 
-        // update the shadowDOM with the current props/state
+            // Decrements one guess
+            this.state.remainingGuesses -= 1;
+
+            // Update last guess
+            this.state.lastGuess = Number(event.detail.lastGuess);
+
+            // Updates hint
+            this.state.hint = String(this.calculateHint());
+        }
+
+        // Updates child components
         this.updateChildren();
     }
 
     updateChildren() {
-        // set the props of our child components (one-way data binding)
-        this.querySelector('x-controls').amount = this.state.amount;
-        this.querySelector('x-counter').total = this.state.total;
+        this.querySelector('game-output').remainingGuesses = Number(this.state.remainingGuesses);
+        this.querySelector('game-output').hint = String(this.state.hint);
+        this.querySelector("game-output").result = String(this.state.result);
     }
 }
 
 // (CHILD 1)
-class XCounter extends HTMLElement {
+class GameOutput extends HTMLElement {
     constructor() {
         super();
 
-        // initialise the props for the component
         this.props = {
-            total: 0,
+            remainingGuesses: 0,
+            hint: "",
+            result: "",
+            target: 0
         };
 
-        // no internal state for this component
-        this.state = {};
-
-        // add shadowDOM
         this.attachShadow({ mode: 'open' });
         this.shadowRoot.innerHTML = `
         <style>
-            h2 {
-                font-size: 1.3em;
+            #result-p {
+                text-align: center;
+                /* color: white; */
+                background: lime;
+                padding: 10px;
+                margin-bottom: 0;
+                font-weight: 600;
             }
         </style>
         
-        <h2>Total: <span id="total">0</span></h2>`;
+        <p>Remaining guesses: <span id="remaining-guesses"></span></p>
+        <p>Hint: <span id="hint"></span></p>
+        <p id="result-p"><span id="result"></span></p>
+`;
     }
 
     connectedCallback() {
-        // ensure any initial properties set before the component was initialised our passed
-        // through our setters
         Object.keys(this.props).forEach((propName) => {
             if (this.hasOwnProperty(propName)) {
                 let value = this[propName];
@@ -116,45 +175,65 @@ class XCounter extends HTMLElement {
             }
         });
 
-        // update the shadowDOM with the intitial props/state
         this.updateChildren();
     }
 
-    set total(value) {
-        // update our props with new value
-        this.props.total = value;
+    set hint(value) {
+        this.props.hint = String(value);
 
         this.updateChildren();
     }
 
-    get total() {
-        // return the prop
-        return this.props.total;
+    get hint() {
+        return this.props.hint;
+    }
+
+    set remainingGuesses(value) {
+        this.props.remainingGuesses = Number(value);
+
+        this.updateChildren();
+    }
+
+    set result(value) {
+        this.props.result = String(value);
+
+        this.updateChildren();
+    }
+
+    get result() {
+        this.props.result;
+    }
+
+    get remainingGuesses() {
+        return this.props.remainingGuesses;
+    }
+
+    updateElement(elementId) {
+        let element = this.shadowRoot.querySelector(`#${elementId} `);
+
+        if (this.props[elementId] === "") {
+            element.parentElement.style.display = "none"; // parent p tag
+        } else {
+            element.parentElement.style.display = "block"; // parent p tag
+            element.innerText = String(this.props[elementId]);
+        }
     }
 
     updateChildren() {
-        // set the props of our child components (one-way data binding)
-        this.shadowRoot.querySelector('#total').innerText = this.props.total;
+        this.shadowRoot.querySelector('#remaining-guesses').innerText = Number(this.props.remainingGuesses);
+        this.updateElement("hint");
+        this.updateElement("result");
     }
 }
 
 // (CHILD 2)
-class XControls extends HTMLElement {
+class GamePlay extends HTMLElement {
     constructor() {
         super();
 
-        // initialise the props for the component
-        this.props = {
-            amount: 1,
-        };
-
-        // no internal state for this component
-        this.state = {};
-
-        // add shadowDOM
         this.attachShadow({ mode: 'open' });
         this.shadowRoot.innerHTML = `
-      <style>
+        <style>
             .controls {
                 max-width: 270px;
                 max-height: 25px;
@@ -162,125 +241,70 @@ class XControls extends HTMLElement {
                 justify-content: space-between;
             }
 
-            .amount {
-                width: 20%;
+            .guess {
+                width: 30%;
                 align-items: center;
                 display: flex;
             }
 
             .form-input {
-                width: 50%;
+                width: 40%;
+                text-align: center;
             }
 
-            input#amount {
-                width: 100%;
+            input#guess {
+                width: 50%;
                 height: 100%;
                 padding-left: 5px;
                 box-sizing: border-box;
             }
 
             .actions {
-                width: 20%;
+                width: 30%;
+                text-align: end;
             }
 
             button {
-                width: 25px;
-                height: 25px;
+                width: fit-content;
+
             }
-      </style>
+        </style>
 
-      <section class="controls">
-        <div class="amount">
-            <label for="amount">Amount</label>
-        </div>
+        <section class="controls">
+            <div class="guess">
+                <label for="guess">Guess</label>
+            </div>
 
-        <div class="form-input">
-            <input type="number" id="amount">
-        </div>
+            <div class="form-input">
+                <input type="number" id="guess" value="0">
+            </div>
 
-        <div class="actions">
-            <button id="increment">+</button>
-            <button id="decrement">-</button>
-        </div>
-      </section>
-    `;
+            <div class="actions">
+                <button id="submit-guess">Guess</button>
+            </div>
+        </section>
+        `;
 
-        // add our event listeners for our component controls
-        this.shadowRoot.querySelector('#amount').addEventListener('input', this.onUpdateAmount);
-        this.shadowRoot.querySelector('#increment').addEventListener('click', this.onIncrement);
-        this.shadowRoot.querySelector('#decrement').addEventListener('click', this.onDecrement);
-
-        // ensure our callbacks are bound to the component context
-        this.onUpdateAmount = this.onUpdateAmount.bind(this);
-        this.onIncrement = this.onIncrement.bind(this);
-        this.onDecrement = this.onDecrement.bind(this);
-    }
-
-    connectedCallback() {
-        // ensure any initial properties set before the component was initialised our passed
-        // through our setters
-        Object.keys(this.props).forEach((propName) => {
-            if (this.hasOwnProperty(propName)) {
-                let value = this[propName];
-                delete this[propName];
-                this[propName] = value;
-            }
+        this.shadowRoot.querySelector('#submit-guess').addEventListener('click', (value) => {
+            this.onGuess(value);
         });
-
-        // update the shadowDOM with the intitial props/state
-        this.updateChildren();
     }
 
-    set amount(value) {
-        // update our props with new value
-        this.props.amount = value;
+    onGuess(event) {
+        let guess = Number(this.shadowRoot.querySelector("#guess").value);
+        const lastGuess = parseInt(guess, 10);
 
-        this.updateChildren();
-    }
-
-    get amount() {
-        // return the prop
-        return this.props.amount;
-    }
-
-    onUpdateAmount(event) {
-        // get value from input
-        const amount = parseInt(event.target.value, 10);
-
-        // dispatch event to update our container state
-        this.dispatchEvent(new CustomEvent('x-update-amount', {
+        this.dispatchEvent(new CustomEvent('on-guess', {
             bubbles: true,
             composed: true,
             detail: {
-                amount,
+                lastGuess,
             },
         }));
     }
-
-    onIncrement(event) {
-        // dispatch event to update our container state
-        this.dispatchEvent(new CustomEvent('x-increment', {
-            bubbles: true,
-            composed: true,
-        }));
-    }
-
-    onDecrement(event) {
-        // dispatch event to update our container state
-        this.dispatchEvent(new CustomEvent('x-decrement', {
-            bubbles: true,
-            composed: true,
-        }));
-    }
-
-    updateChildren() {
-        // set the props of our child components (one-way data binding)
-        this.shadowRoot.querySelector('#amount').value = this.props.amount;
-    }
 }
 
-
 // set the element names for our components
-customElements.define('x-container', XContainer);
-customElements.define('x-controls', XControls);
-customElements.define('x-counter', XCounter);
+customElements.define('game-container', GameContainer);
+customElements.define('game-output', GameOutput);
+customElements.define('game-play', GamePlay);

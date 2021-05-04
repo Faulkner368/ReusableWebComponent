@@ -17,10 +17,20 @@ body {
 
 .card {
     border-radius: 3px;
-    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 5px 7px 6px 0 rgba(0, 0, 0, 0.2);
     width: calc(~"@{mobilesmall} - 50px");
     max-width: calc(~"@{mobilesmall} - 50px");
     padding: 20px;
     display: inherit;
     margin: 5px;
+    background-color: white;
+}
+
+.card:last-child {
+    margin-top: 10px;
+
+    #reset {
+        width: 100%;
+        padding: 5px;
+    }
 }
