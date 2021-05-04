@@ -15,8 +15,6 @@ class GameContainer extends HTMLElement {
             hint: ""
         };
 
-        console.log(this.state.target);
-
         this.attachShadow({ mode: 'open' });
         this.shadowRoot.innerHTML = `
         <style>
@@ -44,19 +42,12 @@ class GameContainer extends HTMLElement {
     }
 
     resetGame() {
-        this.state = {
-            target: Number(Math.floor(Math.random() * 100)), // random number between 1 and 100
-            remainingGuesses: 10,
-            lastGuess: 0,
-            result: "",
-            hint: ""
-        };
 
         /**
          * Only re-add these tags if state is win or lose,
          * as they will have been removed, else no need to re-add
          */
-        if (true) {
+        if (this.endOfGame) {
             let gameCard = document.querySelector("#game-card");
 
             if (gameCard) {
@@ -68,7 +59,21 @@ class GameContainer extends HTMLElement {
             this.appendChild(gamePlay);
         }
 
+        this.state = {
+            target: Number(Math.floor(Math.random() * 100)), // random number between 1 and 100
+            remainingGuesses: 10,
+            lastGuess: 0,
+            result: "",
+            hint: ""
+        };
+
+
         this.updateChildren();
+    }
+
+    get endOfGame() {
+        let result = this.state.result.toLowerCase();
+        return result.includes("win") || result.includes("lose");
     }
 
     connectedCallback() {
